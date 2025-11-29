@@ -1,0 +1,3473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CityFix - Report & Resolve Civic Issues</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.css" />
+    <!-- Google Sign-In SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- EXIF data extraction for photo GPS -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
+    <style>
+        /* ===== LOGIN PAGE STYLES ===== */
+        .login-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1abc9c, #0d7377);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .login-logo {
+            font-size: 40px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .login-container h1 {
+            font-size: 24px;
+            text-align: center;
+            margin: 0 0 8px;
+            color: #191919;
+        }
+
+        .login-container p {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #191919;
+        }
+
+        .phone-input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .country-code {
+            font-size: 16px;
+            font-weight: 600;
+            color: #191919;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            width: 50px;
+            text-align: center;
+        }
+
+        .phone-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e8e8e8;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .phone-input-group input:focus {
+            outline: none;
+            border-color: #1abc9c;
+            box-shadow: 0 0 0 3px rgba(26,188,156,0.1);
+        }
+
+        .otp-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .otp-inputs {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        .otp-box {
+            width: 100%;
+            height: 50px;
+            border: 2px solid #e8e8e8;
+            border-radius: 8px;
+            font-size: 24px;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .otp-box:focus {
+            outline: none;
+            border-color: #1abc9c;
+            box-shadow: 0 0 0 3px rgba(26,188,156,0.1);
+        }
+
+        .timer-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .timer {
+            font-weight: 600;
+            color: #1abc9c;
+        }
+
+        .timer.expired {
+            color: #e74c3c;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: #000;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .btn-primary:hover {
+            background: #1a1a1a;
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: #1abc9c;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 0;
+            transition: all 0.3s ease;
+        }
+
+        .btn-link:hover {
+            color: #0d7377;
+            text-decoration: underline;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            text-align: center;
+            padding: 12px;
+            background: #fadbd8;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* ===== GOOGLE SIGN-IN ===== */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0 16px 0;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e8e8e8;
+        }
+
+        .google-signin-btn {
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #191919;
+            border: 2px solid #e8e8e8;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .google-signin-btn:hover {
+            border-color: #ccc;
+            background: #fafafa;
+            transform: translateY(-2px);
+        }
+
+        .google-signin-btn:active {
+            transform: translateY(0);
+        }
+
+        .google-signin-btn img {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* ===== ROOT VARIABLES ===== */
+        :root {
+            --primary: #000;
+            --primary-light: #1a1a1a;
+            --secondary: #fff;
+            --accent: #1abc9c;
+            --accent-dark: #16a085;
+            --text: #191919;
+            --text-light: #666;
+            --bg: #f5f5f5;
+            --border: #e8e8e8;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.15);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        /* ===== UBER HEADER ===== */
+        .uber-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: var(--secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 24px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .status-indicator.online {
+            color: var(--success);
+        }
+
+        .user-profile {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .user-profile:hover {
+            background: #e8e8e8;
+        }
+
+        .profile-menu {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            min-width: 200px;
+            display: none;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .profile-menu.show {
+            display: block;
+        }
+
+        .profile-info {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e8e8e8;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .profile-info-label {
+            color: #999;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .profile-info-value {
+            font-weight: 600;
+            color: #191919;
+            margin-top: 4px;
+        }
+
+        .profile-menu-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            color: #191919;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .profile-menu-item:hover {
+            background: #f5f5f5;
+        }
+
+        .profile-menu-item.logout {
+            border-top: 1px solid #e8e8e8;
+            color: #d32f2f;
+        }
+
+        .profile-menu-item.logout:hover {
+            background: #ffebee;
+        }
+
+        /* ===== UBER CONTAINER ===== */
+        .uber-container {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 0;
+            height: calc(100vh - 56px);
+            margin-top: 56px;
+            overflow: hidden;
+        }
+
+        .map-section {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .uber-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ===== MAP CONTROLS FLOATING ===== */
+        .map-controls-floating {
+            position: absolute;
+            right: 16px;
+            top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .map-control-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--secondary);
+            border: none;
+            box-shadow: var(--shadow-md);
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .map-control-btn:hover {
+            background: var(--bg);
+            transform: scale(1.1);
+        }
+
+        .map-control-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* ===== PROBLEM DENSITY BADGE ===== */
+        .problem-density-badge {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: var(--secondary);
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+            min-width: 220px;
+        }
+
+        .density-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        .density-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .density-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .density-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .density-color.hot {
+            background: #ef4444;
+        }
+
+        .density-color.warm {
+            background: #f59e0b;
+        }
+
+        .density-color.cold {
+            background: #3b82f6;
+        }
+
+        .density-count {
+            margin-left: auto;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* ===== UBER SIDEBAR ===== */
+        .uber-sidebar {
+            background: var(--secondary);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .uber-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-bottom: 1px solid var(--border);
+            padding: 0;
+        }
+
+        .tab-btn {
+            padding: 14px 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            transition: var(--transition);
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .tab-btn.active {
+            color: var(--text);
+            border-bottom-color: var(--primary);
+        }
+
+        /* ===== TABS CONTAINER ===== */
+        .tabs-container {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+        }
+
+        .tab-content {
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .tab-header {
+            padding: 20px 16px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .tab-header p {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        /* ===== QUICK CATEGORIES ===== */
+        .quick-categories {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 16px;
+            margin-bottom: 8px;
+        }
+
+        .category-quick-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 8px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .category-quick-btn:hover {
+            border-color: var(--accent);
+            background: #f0fffe;
+        }
+
+        .category-quick-btn.active {
+            background: #f0fff4;
+            border-color: var(--success);
+            border-left: 4px solid var(--success);
+            color: var(--success);
+        }
+
+        .cat-icon {
+            font-size: 24px;
+        }
+
+        /* ===== FORM ===== */
+        .form-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 8px 0;
+        }
+
+        .uber-form {
+            padding: 12px 16px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .form-section {
+            margin-bottom: 16px;
+        }
+
+        .section-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .location-btn {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .location-btn:hover {
+            border-color: var(--accent);
+            background: #f0fffe;
+        }
+
+        .loc-icon {
+            font-size: 18px;
+        }
+
+        .location-display {
+            margin-top: 8px;
+            padding: 10px 12px;
+            background: var(--bg);
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--success);
+        }
+
+        /* ===== SEVERITY TABS ===== */
+        .severity-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .severity-tab {
+            position: relative;
+        }
+
+        .severity-tab input {
+            display: none;
+        }
+
+        .severity-tab span {
+            display: block;
+            padding: 12px;
+            text-align: center;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .severity-tab input:checked + span {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: var(--secondary);
+        }
+
+        /* ===== PHOTO UPLOAD ===== */
+        .photo-upload {
+            border: 2px dashed var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: #f0fffe;
+        }
+
+        .photo-upload:hover {
+            border-color: var(--accent-dark);
+            background: #e8fffe;
+        }
+
+        .photo-upload input {
+            display: none;
+        }
+
+        .upload-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .upload-icon {
+            font-size: 32px;
+        }
+
+        .upload-placeholder p {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .image-preview-small {
+            margin-top: 10px;
+            max-height: 180px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .image-preview-small img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* ===== INPUTS ===== */
+        .uber-textarea,
+        .uber-select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .uber-textarea:focus,
+        .uber-select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(26, 188, 156, 0.1);
+        }
+
+        .uber-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* ===== FORM OPTIONS ===== */
+        .form-options {
+            margin: 16px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .option-check input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        .option-check input[type="checkbox"]:checked {
+            accent-color: var(--success);
+        }
+
+        .option-check input[type="checkbox"]:checked + label,
+        .option-check:has(input[type="checkbox"]:checked) {
+            border-color: var(--success);
+            border-left: 4px solid var(--success);
+            background: #f0fff4;
+        }
+
+        /* ===== BUTTONS ===== */
+        .uber-btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: var(--secondary);
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: var(--transition);
+            box-shadow: var(--shadow-md);
+        }
+
+        .uber-btn-primary:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+        }
+
+        .uber-btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-icon {
+            font-size: 18px;
+        }
+
+        /* ===== STATS CONTAINER ===== */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .stat-card {
+            padding: 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .stat-card.submitted {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .stat-card.verified {
+            border-left: 4px solid #8b5cf6;
+        }
+
+        .stat-card.in-progress {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .stat-card.resolved {
+            border-left: 4px solid var(--success);
+        }
+
+        .stat-icon {
+            font-size: 28px;
+        }
+
+        .stat-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        /* ===== CATEGORY BREAKDOWN ===== */
+        .category-breakdown {
+            padding: 0 16px 16px;
+        }
+
+        .category-breakdown h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .category-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+
+        .cat-name {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .cat-count {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        /* ===== FILTER BUTTONS ===== */
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .filter-btn {
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: var(--transition);
+        }
+
+        .filter-btn:hover {
+            border-color: var(--accent);
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: var(--secondary);
+            border-color: var(--primary);
+        }
+
+        /* ===== REPORTS LIST ===== */
+        .reports-list-uber {
+            list-style: none;
+            padding: 0;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .reports-list-uber li {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .reports-list-uber li:hover {
+            background: var(--bg);
+        }
+
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--text-light);
+            cursor: default;
+        }
+
+        .empty-state:hover {
+            background: transparent;
+        }
+
+        .report-item-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .report-item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        .report-status {
+            display: inline-block;
+            padding: 3px 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* ===== MODAL ===== */
+        .modal-uber {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-uber-content {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--secondary);
+            border-radius: 16px 16px 0 0;
+            padding: 0;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+            z-index: 2001;
+        }
+
+        /* Modal action buttons (Other dialog) - elegant, soft tone */
+        #otherModal .btn-primary {
+            background: #0b0b0b;
+            color: #ffffff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(11,11,11,0.10);
+            font-weight: 700;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        #otherModal .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(11,11,11,0.12); }
+
+        #otherModal .btn-link {
+            background: #ffffff;
+            color: #0b0b0b;
+            border: 1px solid #ececec;
+            padding: 10px 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(11,11,11,0.04);
+            font-weight: 600;
+        }
+        #otherModal .btn-link:hover { background: #fbfbfb; }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--secondary);
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 24px;
+            color: var(--text-light);
+            transition: var(--transition);
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        /* ===== TIMELINE ===== */
+        .timeline-uber {
+            padding: 16px;
+        }
+
+        .timeline-step {
+            padding: 12px;
+            margin-bottom: 12px;
+            background: var(--bg);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+        }
+
+        .timeline-step.completed {
+            border-left-color: var(--success);
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .timeline-time {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .uber-container {
+                grid-template-columns: 1fr 380px;
+            }
+
+            .quick-categories {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .uber-container {
+                grid-template-columns: 1fr;
+            }
+
+            .map-section {
+                display: none;
+            }
+
+            .uber-sidebar {
+                height: 100%;
+            }
+
+            .quick-categories {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .uber-header {
+                height: 52px;
+                padding: 0 12px;
+            }
+
+            .logo {
+                font-size: 20px;
+            }
+
+            .quick-categories {
+                grid-template-columns: repeat(3, 1fr);
+                padding: 12px;
+            }
+
+            .tab-btn {
+                font-size: 11px;
+                padding: 12px 8px;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="appNotice" class="app-notice" style="display:none;position:fixed;top:18px;right:18px;background:#14c9a7;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:1200;font-weight:700;font-size:13px"></div>
+    <!-- Login Page -->
+    <div id="loginPage" class="login-page">
+        <div class="login-container">
+            <div class="login-logo">🏛️ CityFix</div>
+            <h1>Welcome to CityFix</h1>
+            <p>Report civic issues in your city</p>
+           
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <div class="phone-input-group">
+                        <span class="country-code">+91</span>
+                        <input id="phoneInput" type="tel" placeholder="Enter 10-digit number" maxlength="10" required />
+                    </div>
+                </div>
+
+                <button type="button" id="sendOtpBtn" class="btn-primary">Send OTP</button>
+
+                <div class="divider">Or continue with</div>
+
+                <button type="button" id="googleSignInBtn" class="google-signin-btn" onclick="initiateGoogleSignIn(event)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+
+                <div id="otpSection" class="otp-section" style="display:none;">
+                    <label>Enter OTP</label>
+                    <div class="otp-inputs">
+                        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" required />
+                        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" required />
+                        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" required />
+                        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" required />
+                        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" required />
+                        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" required />
+                    </div>
+
+                    <div class="timer-section">
+                        <span id="timer" class="timer">60s</span>
+                        <button type="button" id="resendBtn" class="btn-link" style="display:none;">Resend OTP</button>
+                    </div>
+
+                    <button type="submit" id="verifyBtn" class="btn-primary">Verify & Login</button>
+                </div>
+            </form>
+
+            <div id="loginError" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- Main App (Hidden until login) -->
+    <div id="mainApp" style="display:none;">
+    <!-- Uber-style Header -->
+    <header class="uber-header">
+        <div class="header-left">
+            <div class="logo">🏛️ CityFix</div>
+        </div>
+        <div class="header-right">
+            <div id="connectivity" class="status-indicator online">● Online</div>
+            <div class="user-profile" onclick="toggleProfileMenu()">👤
+                <div class="profile-menu" id="profileMenu">
+                    <div class="profile-info">
+                        <div class="profile-info-label">Phone</div>
+                        <div class="profile-info-value" id="profilePhone">Not set</div>
+                    </div>
+                            <div class="profile-info" style="border-top:0;padding-top:10px;">
+                                <div class="profile-info-label">Reports</div>
+                                <div class="profile-info-value" id="profileReports">0</div>
+                            </div>
+                    <div class="profile-menu-item logout" onclick="logoutUser()">
+                        <span>🚪</span> Logout
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Uber-style Layout -->
+    <div class="uber-container">
+        <!-- Full Map (Left/Background) -->
+        <div class="map-section">
+            <div id="map" class="uber-map"></div>
+           
+            <!-- Floating Map Controls -->
+            <div class="map-controls-floating">
+                <button id="zoomIn" class="map-control-btn">+</button>
+                <button id="zoomOut" class="map-control-btn">−</button>
+                <button id="centerLocation" class="map-control-btn">📍</button>
+            </div>
+
+            <!-- Problem Density Info (Top Left) -->
+            <div class="problem-density-badge">
+                <div class="density-title">Problem Density</div>
+                <div class="density-stats">
+                    <div class="density-item">
+                        <span class="density-color hot"></span>
+                        <span>Critical</span>
+                        <span class="density-count" id="density-critical">0</span>
+                    </div>
+                    <div class="density-item">
+                        <span class="density-color warm"></span>
+                        <span>High</span>
+                        <span class="density-count" id="density-high">0</span>
+                    </div>
+                    <div class="density-item">
+                        <span class="density-color cold"></span>
+                        <span>Low</span>
+                        <span class="density-count" id="density-low">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar (Uber-style Sheet) -->
+        <aside class="uber-sidebar">
+            <!-- Tab Navigation -->
+            <div class="uber-tabs">
+                <button class="tab-btn active" data-tab="report">Report Issue</button>
+                <button class="tab-btn" data-tab="stats">Statistics</button>
+                <button class="tab-btn" data-tab="history">History</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tabs-container">
+                <!-- Report Tab -->
+                <div class="tab-content active" id="report-tab">
+                    <div class="tab-header">
+                        <h2>Report a Civic Issue</h2>
+                        <p>Help keep our city clean & safe</p>
+                    </div>
+
+                    <form id="reportForm" class="uber-form">
+                        <input type="hidden" id="category" name="category" value="" />
+                        <input type="hidden" id="otherExplanation" name="otherExplanation" value="" />
+                        <!-- Quick Category Selection -->
+                        <div class="quick-categories">
+                            <div class="category-quick-btn" data-category="pothole">
+                                <span class="cat-icon">🕳️</span>
+                                <span>Pothole</span>
+                            </div>
+                            <div class="category-quick-btn" data-category="garbage">
+                                <span class="cat-icon">🗑️</span>
+                                <span>Garbage</span>
+                            </div>
+                            <div class="category-quick-btn" data-category="streetlight">
+                                <span class="cat-icon">💡</span>
+                                <span>Broken Street Light</span>
+                            </div>
+                            <div class="category-quick-btn" data-category="water">
+                                <span class="cat-icon">💧</span>
+                                <span>Water Leakage</span>
+                            </div>
+                            <div class="category-quick-btn" data-category="tree">
+                                <span class="cat-icon">🌳</span>
+                                <span>Fallen Tree</span>
+                            </div>
+                            <div class="category-quick-btn" data-category="traffic">
+                                <span class="cat-icon">🚦</span>
+                                <span>Traffic</span>
+                            </div>
+                            <div class="category-quick-btn" data-category="drainage">
+                                <span class="cat-icon">🌊</span>
+                                <span>Drainage Leakage</span>
+                            </div>
+                            <div class="category-quick-btn" data-category="other">
+                                <span class="cat-icon">📌</span>
+                                <span>Other</span>
+                            </div>
+                        </div>
+
+                        <div class="form-divider"></div>
+
+                        <!-- Location Section -->
+                        <div class="form-section">
+                            <label class="section-label">📍 Location</label>
+                            <button id="geoBtn" type="button" class="location-btn">
+                                <span class="loc-icon">📍</span>
+                                <span id="locationText">Get Current Location</span>
+                            </button>
+                            <div id="coords" class="location-display"></div>
+                        </div>
+
+                        <!-- Severity Section -->
+                        <div class="form-section">
+                            <label class="section-label">⚠️ Severity Level</label>
+                            <div class="severity-tabs">
+                                <label class="severity-tab">
+                                    <input type="radio" name="severity" value="low" checked />
+                                    <span>Low</span>
+                                </label>
+                                <label class="severity-tab">
+                                    <input type="radio" name="severity" value="medium" />
+                                    <span>Medium</span>
+                                </label>
+                                <label class="severity-tab">
+                                    <input type="radio" name="severity" value="high" />
+                                    <span>High</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Photo Upload -->
+                        <div class="form-section">
+                            <label class="section-label">📸 Photo</label>
+                            <div class="photo-upload">
+                                <input id="imageInput" type="file" accept="image/*" required />
+                                <div class="upload-placeholder">
+                                    <div class="upload-icon">📸</div>
+                                    <p>Tap to add photo</p>
+                                </div>
+                            </div>
+                            <div id="imagePreview" class="image-preview-small"></div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-section">
+                            <label class="section-label">💬 Description</label>
+                            <textarea id="description" placeholder="Add details about the issue..." class="uber-textarea"></textarea>
+                        </div>
+
+                        <!-- Department -->
+                        <div class="form-section">
+                            <label class="section-label">🏢 Department</label>
+                            <select id="department" class="uber-select">
+                                <option value="">Auto-assign</option>
+                                <option value="roads">🛣️ Roads & Infrastructure</option>
+                                <option value="sanitation">🧹 Sanitation</option>
+                                <option value="electricity">⚡ Electricity</option>
+                                <option value="water">💧 Water & Drainage</option>
+                                <option value="parks">🌳 Parks & Green</option>
+                                <option value="traffic">🚦 Traffic & Transport</option>
+                            </select>
+                        </div>
+
+                        <!-- Options -->
+                        <div class="form-options">
+                            <div class="option-check">
+                                <input type="checkbox" id="chk-anonymous" name="anonymous" value="anonymous" />
+                                <label for="chk-anonymous">Report anonymously</label>
+                            </div>
+                            <div class="option-check">
+                                <input type="checkbox" id="chk-urgent" name="urgent" value="urgent" />
+                                <label for="chk-urgent">Mark as urgent</label>
+                            </div>
+                            <div class="option-check">
+                                <input type="checkbox" id="chk-notify" name="notify" value="notify" checked />
+                                <label for="chk-notify">Notify me of updates</label>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button id="submitBtn" type="submit" class="uber-btn-primary">
+                            <span class="btn-icon">✓</span>
+                            <span>Submit Report</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Statistics Tab -->
+                <div class="tab-content" id="stats-tab">
+                    <div class="tab-header">
+                        <h2>City Statistics</h2>
+                        <p>Real-time civic issue data</p>
+                    </div>
+
+                    <div class="stats-container">
+                        <div class="stat-card submitted">
+                            <div class="stat-icon">📝</div>
+                            <div class="stat-details">
+                                <div class="stat-value" id="submittedCount">0</div>
+                                <div class="stat-label">Submitted</div>
+                            </div>
+                        </div>
+                        <div class="stat-card verified">
+                            <div class="stat-icon">✓</div>
+                            <div class="stat-details">
+                                <div class="stat-value" id="verifiedCount">0</div>
+                                <div class="stat-label">Verified</div>
+                            </div>
+                        </div>
+                        <div class="stat-card in-progress">
+                            <div class="stat-icon">⚙️</div>
+                            <div class="stat-details">
+                                <div class="stat-value" id="inProgressCount">0</div>
+                                <div class="stat-label">In Progress</div>
+                            </div>
+                        </div>
+                        <div class="stat-card resolved">
+                            <div class="stat-icon">🎉</div>
+                            <div class="stat-details">
+                                <div class="stat-value" id="resolvedCount">0</div>
+                                <div class="stat-label">Resolved</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="category-breakdown">
+                        <h3>By Category</h3>
+                        <div class="category-list">
+                            <div class="category-item">
+                                <span class="cat-icon">🕳️</span>
+                                <span class="cat-name">Potholes</span>
+                                <span class="cat-count" id="count-pothole">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">🗑️</span>
+                                <span class="cat-name">Garbage</span>
+                                <span class="cat-count" id="count-garbage">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">💡</span>
+                                <span class="cat-name">Broken Streetlight</span>
+                                <span class="cat-count" id="count-streetlight">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">💧</span>
+                                <span class="cat-name">Water Leak</span>
+                                <span class="cat-count" id="count-water">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">🌊</span>
+                                <span class="cat-name">Drainage Leakage</span>
+                                <span class="cat-count" id="count-drainage">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">🌳</span>
+                                <span class="cat-name">Fallen Tree</span>
+                                <span class="cat-count" id="count-tree">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">🔊</span>
+                                <span class="cat-name">Noise Pollution</span>
+                                <span class="cat-count" id="count-noise">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">🐕</span>
+                                <span class="cat-name">Stray Animals</span>
+                                <span class="cat-count" id="count-stray">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">📌</span>
+                                <span class="cat-name">Other</span>
+                                <span class="cat-count" id="count-other">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">🚦</span>
+                                <span class="cat-name">Traffic</span>
+                                <span class="cat-count" id="count-traffic">0</span>
+                            </div>
+                            <div class="category-item">
+                                <span class="cat-icon">⚠️</span>
+                                <span class="cat-name">Accident</span>
+                                <span class="cat-count" id="count-accident">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div class="tab-content" id="history-tab">
+                    <div class="tab-header">
+                        <h2>Your Reports</h2>
+                        <p>Track your submissions</p>
+                    </div>
+
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="">All</button>
+                        <button class="filter-btn" data-filter="submitted">📝 Submitted</button>
+                        <button class="filter-btn" data-filter="verified">✓ Verified</button>
+                        <button class="filter-btn" data-filter="in-progress">⚙️ Progress</button>
+                        <button class="filter-btn" data-filter="resolved">🎉 Resolved</button>
+                    </div>
+
+                    <ul id="reportsList" class="reports-list-uber">
+                        <li class="empty-state">No reports yet</li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Timeline Modal -->
+    <div id="timelineModal" class="modal-uber">
+        <div class="modal-uber-content">
+            <div class="modal-header">
+                <h2>Report Timeline</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="timelineContent" class="timeline-uber"></div>
+        </div>
+    </div>
+    
+    <!-- Other Issue Modal -->
+    <div id="otherModal" class="modal-uber">
+        <div class="modal-uber-content" style="padding:16px; border-radius:12px; max-width:640px; margin:48px auto; position:relative; top:auto; left:auto; right:auto; bottom:auto;">
+            <div class="modal-header">
+                <h2>Explain your issue</h2>
+                <button class="modal-close" id="otherClose">&times;</button>
+            </div>
+            <div style="padding:12px 16px;">
+                <p style="color:var(--text-light); margin:0 0 8px">Please describe the issue so the right department can act.</p>
+                <textarea id="otherDesc" style="width:100%; min-height:120px; padding:10px; border-radius:8px; border:1px solid var(--border);"></textarea>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+                    <button id="otherCancel" class="btn-link">Cancel</button>
+                    <button id="otherSave" class="btn-primary">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <!-- End Main App -->
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="duplicate-detection.js"></script>
+
+    <script>
+        // ===== LOGIN LOGIC =====
+        let otpTimer = 60;
+        let generatedOtp = '';
+        let isOtpSent = false;
+
+        function loginWithGoogle(email) {
+            // Extract phone-like identifier from email (for demo purposes)
+            // In production, you'd use the actual Google user ID or email
+            const errorEl = document.getElementById('loginError');
+            errorEl.classList.remove('show');
+
+            // Generate OTP for Google login
+            generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+            sessionStorage.setItem('demo_otp', generatedOtp);
+            sessionStorage.setItem('demo_phone', email);
+            sessionStorage.setItem('login_method', 'google');
+
+            // Alert with OTP (demo)
+            alert('OTP for ' + email + ': ' + generatedOtp);
+
+            // Show OTP section
+            document.getElementById('otpSection').style.display = 'flex';
+            document.getElementById('sendOtpBtn').disabled = true;
+            document.getElementById('googleSignInBtn').disabled = true;
+            isOtpSent = true;
+
+            // Start timer
+            startOtpTimer();
+        }
+
+        function initiateGoogleSignIn(event) {
+            event.preventDefault();
+            
+            // Initialize Google Sign-In with One Tap UI or account selection
+            if (window.google && window.google.accounts) {
+                // Use Google's One Tap UI to detect logged-in accounts
+                window.google.accounts.id.initialize({
+                    client_id: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+                    callback: handleGoogleSignIn
+                });
+
+                // Attempt to show One Tap UI (shows logged-in accounts)
+                try {
+                    window.google.accounts.id.prompt((notification) => {
+                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                            // One Tap not available, show custom account input
+                            showAccountInputModal();
+                        }
+                    });
+                } catch (e) {
+                    // Fallback to custom input
+                    showAccountInputModal();
+                }
+            } else {
+                // Google SDK not loaded, use fallback
+                showAccountInputModal();
+            }
+        }
+
+        function handleGoogleSignIn(response) {
+            if (response.credential) {
+                try {
+                    // Decode JWT token to get user email
+                    const base64Url = response.credential.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+                    
+                    const userInfo = JSON.parse(jsonPayload);
+                    if (userInfo.email) {
+                        loginWithGoogle(userInfo.email);
+                    }
+                } catch (e) {
+                    console.log('Error processing Google response');
+                    showAccountInputModal();
+                }
+            }
+        }
+
+        function showAccountInputModal() {
+            // Create a modal for Gmail input
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 24px;
+                width: 100%;
+                max-width: 400px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            `;
+
+            const title = document.createElement('h2');
+            title.textContent = 'Enter your Gmail';
+            title.style.cssText = `
+                font-size: 18px;
+                margin-bottom: 8px;
+                color: #191919;
+            `;
+            content.appendChild(title);
+
+            const subtitle = document.createElement('p');
+            subtitle.textContent = 'Enter the Gmail address you\'re logged into in your browser';
+            subtitle.style.cssText = `
+                font-size: 13px;
+                color: #666;
+                margin-bottom: 20px;
+            `;
+            content.appendChild(subtitle);
+
+            const input = document.createElement('input');
+            input.type = 'email';
+            input.placeholder = 'your.email@gmail.com';
+            input.style.cssText = `
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #e8e8e8;
+                border-radius: 8px;
+                font-size: 14px;
+                margin-bottom: 16px;
+                transition: all 0.3s ease;
+                box-sizing: border-box;
+            `;
+
+            input.addEventListener('focus', () => {
+                input.style.borderColor = '#1abc9c';
+                input.style.boxShadow = '0 0 0 3px rgba(26,188,156,0.1)';
+            });
+
+            input.addEventListener('blur', () => {
+                input.style.borderColor = '#e8e8e8';
+                input.style.boxShadow = 'none';
+            });
+
+            content.appendChild(input);
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.cssText = `
+                display: flex;
+                gap: 12px;
+            `;
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.style.cssText = `
+                flex: 1;
+                padding: 12px;
+                border: 2px solid #e8e8e8;
+                background: white;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                transition: all 0.3s ease;
+            `;
+
+            cancelBtn.addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            const continueBtn = document.createElement('button');
+            continueBtn.textContent = 'Continue';
+            continueBtn.style.cssText = `
+                flex: 1;
+                padding: 12px;
+                background: #000;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                transition: all 0.3s ease;
+            `;
+
+            continueBtn.addEventListener('click', () => {
+                const email = input.value.trim();
+                if (email && email.includes('@')) {
+                    document.body.removeChild(modal);
+                    loginWithGoogle(email);
+                } else {
+                    input.style.borderColor = '#e74c3c';
+                    input.placeholder = 'Please enter a valid email address';
+                }
+            });
+
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    continueBtn.click();
+                }
+            });
+
+            buttonContainer.appendChild(cancelBtn);
+            buttonContainer.appendChild(continueBtn);
+            content.appendChild(buttonContainer);
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            // Focus input
+            input.focus();
+
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+        }
+
+        function loginWithGoogle(email) {
+            const errorEl = document.getElementById('loginError');
+            errorEl.classList.remove('show');
+
+            // Generate OTP for Google login
+            generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+            sessionStorage.setItem('demo_otp', generatedOtp);
+            sessionStorage.setItem('demo_phone', email);
+            sessionStorage.setItem('login_method', 'google');
+
+            // Show OTP modal instead of alert
+            showOtpModal(email, generatedOtp, 'google');
+        }
+
+        function showOtpModal(email, otp, method = 'phone') {
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.id = 'otpModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                border-radius: 16px;
+                padding: 32px 24px;
+                width: 100%;
+                max-width: 400px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                animation: slideUp 0.3s ease-out;
+            `;
+
+            // Add animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(30px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Header
+            const header = document.createElement('div');
+            header.style.cssText = `
+                text-align: center;
+                margin-bottom: 24px;
+            `;
+
+            const title = document.createElement('h2');
+            title.textContent = 'Verify your email';
+            title.style.cssText = `
+                font-size: 22px;
+                margin: 0 0 8px 0;
+                color: #191919;
+            `;
+            header.appendChild(title);
+
+            const subtitle = document.createElement('p');
+            subtitle.textContent = `We sent an OTP to ${email}`;
+            subtitle.style.cssText = `
+                font-size: 14px;
+                color: #666;
+                margin: 0;
+            `;
+            header.appendChild(subtitle);
+            content.appendChild(header);
+
+            // OTP Display Box
+            const otpDisplayBox = document.createElement('div');
+            otpDisplayBox.style.cssText = `
+                background: #f5f5f5;
+                border-radius: 12px;
+                padding: 16px;
+                text-align: center;
+                margin-bottom: 24px;
+                border: 2px solid #e8e8e8;
+            `;
+
+            const otpLabel = document.createElement('div');
+            otpLabel.textContent = 'Your OTP';
+            otpLabel.style.cssText = `
+                font-size: 12px;
+                color: #999;
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                font-weight: 600;
+            `;
+            otpDisplayBox.appendChild(otpLabel);
+
+            const otpValue = document.createElement('div');
+            otpValue.textContent = otp;
+            otpValue.style.cssText = `
+                font-size: 32px;
+                font-weight: 700;
+                color: #1abc9c;
+                letter-spacing: 4px;
+                font-family: 'Courier New', monospace;
+            `;
+            otpDisplayBox.appendChild(otpValue);
+
+            const copyHint = document.createElement('div');
+            copyHint.style.cssText = `
+                font-size: 11px;
+                color: #aaa;
+                margin-top: 8px;
+            `;
+            copyHint.textContent = '(Already copied)';
+            otpDisplayBox.appendChild(copyHint);
+
+            content.appendChild(otpDisplayBox);
+
+            // Copy OTP button
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = 'Copy OTP';
+            copyBtn.style.cssText = `
+                width: 100%;
+                padding: 12px;
+                background: #e8e8e8;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                color: #191919;
+                transition: all 0.3s ease;
+                margin-bottom: 16px;
+            `;
+
+            copyBtn.addEventListener('mouseover', () => {
+                copyBtn.style.background = '#ddd';
+            });
+
+            copyBtn.addEventListener('mouseout', () => {
+                copyBtn.style.background = '#e8e8e8';
+            });
+
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(otp).then(() => {
+                    copyBtn.textContent = '✓ Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Copy OTP';
+                    }, 2000);
+                });
+            });
+
+            content.appendChild(copyBtn);
+
+            // OTP Input Fields
+            const inputLabel = document.createElement('div');
+            inputLabel.textContent = 'Or enter OTP below';
+            inputLabel.style.cssText = `
+                font-size: 12px;
+                color: #999;
+                margin-bottom: 12px;
+                text-align: center;
+                font-weight: 500;
+            `;
+            content.appendChild(inputLabel);
+
+            const inputContainer = document.createElement('div');
+            inputContainer.style.cssText = `
+                display: grid;
+                grid-template-columns: repeat(6, 1fr);
+                gap: 8px;
+                margin-bottom: 24px;
+            `;
+
+            const otpInputs = [];
+            for (let i = 0; i < 6; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.maxLength = '1';
+                input.inputMode = 'numeric';
+                input.style.cssText = `
+                    width: 100%;
+                    height: 48px;
+                    border: 2px solid #e8e8e8;
+                    border-radius: 8px;
+                    font-size: 20px;
+                    text-align: center;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    cursor: text;
+                `;
+
+                input.addEventListener('focus', () => {
+                    input.style.borderColor = '#1abc9c';
+                    input.style.boxShadow = '0 0 0 3px rgba(26,188,156,0.1)';
+                });
+
+                input.addEventListener('blur', () => {
+                    input.style.borderColor = '#e8e8e8';
+                    input.style.boxShadow = 'none';
+                });
+
+                input.addEventListener('input', (e) => {
+                    input.value = input.value.replace(/[^0-9]/g, '').slice(0, 1);
+                    if (input.value && i < 5) {
+                        otpInputs[i + 1].focus();
+                    }
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !input.value && i > 0) {
+                        otpInputs[i - 1].focus();
+                    }
+                });
+
+                otpInputs.push(input);
+                inputContainer.appendChild(input);
+            }
+
+            content.appendChild(inputContainer);
+
+            // Verify Button
+            const verifyBtn = document.createElement('button');
+            verifyBtn.textContent = 'Verify & Login';
+            verifyBtn.style.cssText = `
+                width: 100%;
+                padding: 14px;
+                background: #000;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin-bottom: 12px;
+            `;
+
+            verifyBtn.addEventListener('mouseover', () => {
+                verifyBtn.style.background = '#1a1a1a';
+                verifyBtn.style.transform = 'translateY(-2px)';
+            });
+
+            verifyBtn.addEventListener('mouseout', () => {
+                verifyBtn.style.background = '#000';
+                verifyBtn.style.transform = 'translateY(0)';
+            });
+
+            verifyBtn.addEventListener('click', () => {
+                const enteredOtp = otpInputs.map(input => input.value).join('');
+                if (enteredOtp.length !== 6) {
+                    alert('Please enter all 6 digits');
+                    return;
+                }
+
+                if (enteredOtp === otp) {
+                    // Success
+                    document.body.removeChild(modal);
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    
+                    // Persist email/phone
+                    if (method === 'google') {
+                        localStorage.setItem('civic_phone', email);
+                    } else {
+                        localStorage.setItem('civic_phone', sessionStorage.getItem('demo_phone'));
+                    }
+
+                    // Show main app
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+                    
+                    try { updateProfileDisplay(); } catch (e) {}
+                    
+                    // Clear OTP boxes in main form
+                    const otpBoxes = document.querySelectorAll('.otp-box');
+                    otpBoxes.forEach(box => box.value = '');
+                    
+                    // Reset form state
+                    document.getElementById('otpSection').style.display = 'none';
+                    document.getElementById('sendOtpBtn').disabled = false;
+                    document.getElementById('googleSignInBtn').disabled = false;
+                    
+                    // Initialize app
+                    initializeMap();
+                    loadReports();
+                } else {
+                    // Wrong OTP
+                    otpInputs.forEach(input => {
+                        input.style.borderColor = '#e74c3c';
+                        input.value = '';
+                    });
+                    setTimeout(() => {
+                        otpInputs.forEach(input => {
+                            input.style.borderColor = '#e8e8e8';
+                        });
+                    }, 1500);
+                    otpInputs[0].focus();
+                }
+            });
+
+            content.appendChild(verifyBtn);
+
+            // Timer Section
+            let remainingTime = 60;
+            const timerContainer = document.createElement('div');
+            timerContainer.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 13px;
+                color: #666;
+            `;
+
+            const timerText = document.createElement('span');
+            timerText.textContent = `Expires in ${remainingTime}s`;
+            timerContainer.appendChild(timerText);
+
+            const resendBtn = document.createElement('button');
+            resendBtn.textContent = 'Resend';
+            resendBtn.style.cssText = `
+                background: none;
+                border: none;
+                color: #1abc9c;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 13px;
+                padding: 0;
+                transition: all 0.3s ease;
+            `;
+            resendBtn.disabled = true;
+            resendBtn.style.opacity = '0.5';
+            timerContainer.appendChild(resendBtn);
+
+            content.appendChild(timerContainer);
+
+            // Timer countdown
+            const timerInterval = setInterval(() => {
+                remainingTime--;
+                timerText.textContent = `Expires in ${remainingTime}s`;
+
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                    timerText.textContent = 'OTP Expired';
+                    timerText.style.color = '#e74c3c';
+                    resendBtn.disabled = false;
+                    resendBtn.style.opacity = '1';
+                    otpInputs.forEach(input => input.disabled = true);
+                }
+            }, 1000);
+
+            resendBtn.addEventListener('click', () => {
+                document.body.removeChild(modal);
+                if (method === 'google') {
+                    loginWithGoogle(email);
+                }
+            });
+
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            // Auto-close on background click (optional - remove if you want to force input)
+            // modal.addEventListener('click', (e) => {
+            //     if (e.target === modal) document.body.removeChild(modal);
+            // });
+
+            // Focus first input
+            otpInputs[0].focus();
+        }
+
+        function sendLoginOtp(providedPhone) {
+            const phoneEl = document.getElementById('phoneInput');
+            const phone = (providedPhone || phoneEl.value || '').trim();
+            const errorEl = document.getElementById('loginError');
+
+            if (!phone || phone.length !== 10) {
+                errorEl.textContent = 'Please enter a valid 10-digit phone number';
+                errorEl.classList.add('show');
+                return false;
+            }
+
+            errorEl.classList.remove('show');
+            generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+            // Store OTP in session (demo) with +91 prefix
+            sessionStorage.setItem('demo_otp', generatedOtp);
+            sessionStorage.setItem('demo_phone', '+91' + phone);
+            sessionStorage.setItem('login_method', 'phone');
+
+            // Show OTP in modal instead of alert
+            const phoneDisplay = '+91 ' + phone.slice(0, 5) + ' ' + phone.slice(5);
+            showOtpModal(phoneDisplay, generatedOtp, 'phone');
+
+            phoneEl.disabled = true;
+            return true;
+        }
+
+        document.getElementById('sendOtpBtn').addEventListener('click', () => {
+            // send using entered phone
+            sendLoginOtp();
+        });
+
+        function startOtpTimer() {
+            otpTimer = 60;
+            const timerEl = document.getElementById('timer');
+            const resendBtn = document.getElementById('resendBtn');
+            resendBtn.style.display = 'none';
+
+            const interval = setInterval(() => {
+                otpTimer--;
+                timerEl.textContent = otpTimer + 's';
+
+                if (otpTimer <= 0) {
+                    clearInterval(interval);
+                    timerEl.textContent = 'Expired';
+                    timerEl.classList.add('expired');
+                    resendBtn.style.display = 'inline-block';
+                }
+            }, 1000);
+        }
+
+        document.getElementById('resendBtn').addEventListener('click', () => {
+            document.getElementById('sendOtpBtn').click();
+        });
+
+        // OTP auto-advance
+        const otpBoxes = document.querySelectorAll('.otp-box');
+        otpBoxes.forEach((box, idx) => {
+            box.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace') {
+                    box.value = '';
+                    if (idx > 0) otpBoxes[idx - 1].focus();
+                    e.preventDefault();
+                } else if (e.key.match(/[0-9]/)) {
+                    e.preventDefault();
+                    box.value = e.key;
+                    if (idx < otpBoxes.length - 1) otpBoxes[idx + 1].focus();
+                }
+            });
+           
+            box.addEventListener('input', () => {
+                box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
+            });
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+           
+            const enteredOtp = Array.from(otpBoxes).map(box => box.value).join('');
+            const storedOtp = sessionStorage.getItem('demo_otp');
+            const errorEl = document.getElementById('loginError');
+
+            if (enteredOtp.length !== 6) {
+                errorEl.textContent = 'Please enter all 6 digits';
+                errorEl.classList.add('show');
+                return;
+            }
+
+            if (enteredOtp === storedOtp) {
+                errorEl.classList.remove('show');
+                sessionStorage.setItem('isLoggedIn', 'true');
+                // Persist the phone so profile can display it
+                try {
+                    const demoPhone = sessionStorage.getItem('demo_phone');
+                    if (demoPhone) localStorage.setItem('civic_phone', demoPhone);
+                } catch (e) {}
+               
+                // Hide login, show main app
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                // Update profile info immediately
+                try { updateProfileDisplay(); } catch (e) {}
+               
+                // Initialize app
+                initializeMap();
+                loadReports();
+                setupEventListeners();
+                checkConnectivity();
+                setInterval(checkConnectivity, 5000);
+            } else {
+                errorEl.textContent = 'Invalid OTP. Try again!';
+                errorEl.classList.add('show');
+                otpBoxes.forEach(box => box.value = '');
+                otpBoxes[0].focus();
+            }
+        });
+
+        // Check if already logged in
+        if (sessionStorage.getItem('isLoggedIn') === 'true') {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+           
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeMap();
+                loadReports();
+                setupEventListeners();
+                checkConnectivity();
+                setInterval(checkConnectivity, 5000);
+            });
+        }
+            document.getElementById('resendBtn').addEventListener('click', () => {
+                // When resend is clicked (after expiry), generate a fresh OTP and restart timer
+                const phoneEl = document.getElementById('phoneInput');
+                const phone = phoneEl.value.trim();
+                // re-enable send button briefly for accessibility and visual parity
+                document.getElementById('sendOtpBtn').disabled = true;
+                sendLoginOtp(phone);
+            });
+        let userLocation = null;
+        let reports = [];
+        let heatLayer = null;
+        let markersLayer = null;
+        let selectedCategory = '';
+        let currentFilterStatus = '';
+        let departmentManuallySet = false;
+        let listenersInitialized = false;
+        const STORAGE_KEY = 'civic_reports';
+
+        // ===== PROFILE MENU =====
+        function toggleProfileMenu() {
+            const menu = document.getElementById('profileMenu');
+            menu.classList.toggle('show');
+            // close menu when clicking outside
+            document.addEventListener('click', closeProfileMenuOnClickOutside);
+        }
+
+        function closeProfileMenuOnClickOutside(e) {
+            const menu = document.getElementById('profileMenu');
+            const profile = document.querySelector('.user-profile');
+            if (!menu.contains(e.target) && !profile.contains(e.target)) {
+                menu.classList.remove('show');
+                document.removeEventListener('click', closeProfileMenuOnClickOutside);
+            }
+        }
+
+        function updateProfileDisplay() {
+            const phone = localStorage.getItem('civic_phone') || localStorage.getItem('municipal_phone');
+            const profilePhoneEl = document.getElementById('profilePhone');
+            const profileReportsEl = document.getElementById('profileReports');
+            if (phone) {
+                // show full phone (with +91 if stored without)
+                const displayPhone = phone.startsWith('+91') ? phone : '+91 ' + phone;
+                profilePhoneEl.textContent = displayPhone;
+
+                // count reports for this phone
+                try {
+                    const stored = localStorage.getItem(STORAGE_KEY);
+                    const all = stored ? JSON.parse(stored) : [];
+                    const count = all.filter(r => (r.reporterPhone === phone || r.reporterPhone === ('+91' + phone) || r.reporterPhone === ('+91 ' + phone))).length;
+                    if (profileReportsEl) profileReportsEl.textContent = String(count);
+                } catch (e) {
+                    if (profileReportsEl) profileReportsEl.textContent = '0';
+                }
+            } else {
+                if (profilePhoneEl) profilePhoneEl.textContent = 'Not set';
+                if (profileReportsEl) profileReportsEl.textContent = '0';
+            }
+        }
+
+        function logoutUser() {
+            // clear session and localStorage
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('demo_otp');
+            sessionStorage.removeItem('demo_phone');
+            sessionStorage.removeItem('login_method');
+            localStorage.removeItem('civic_phone');
+            localStorage.removeItem('municipal_phone');
+            
+            // Reset login form
+            try {
+                document.getElementById('loginForm').reset();
+                document.getElementById('otpSection').style.display = 'none';
+                document.getElementById('sendOtpBtn').disabled = false;
+                document.getElementById('googleSignInBtn').disabled = false;
+                document.getElementById('timer').textContent = '60s';
+                document.getElementById('timer').classList.remove('expired');
+                document.getElementById('phoneInput').disabled = false;
+                const resendBtn = document.getElementById('resendBtn');
+                if (resendBtn) resendBtn.style.display = 'none';
+                
+                // Show login page, hide main app
+                document.getElementById('loginPage').style.display = 'flex';
+                document.getElementById('mainApp').style.display = 'none';
+            } catch (e) {}
+        }
+
+        // ===== INITIALIZATION =====
+        function initApp() {
+            // Ensure basic UI event listeners are attached early so form UI works
+            // even if the user is not logged in yet (prevents missing handlers).
+            try { if (!listenersInitialized) setupEventListeners(); } catch (e) {}
+            // Check login status
+            if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+                document.getElementById('loginPage').style.display = 'flex';
+                document.getElementById('mainApp').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            updateProfileDisplay(); // update profile menu with phone number
+            initializeMap();
+            loadReports();
+            setupEventListeners();
+            checkConnectivity();
+            setInterval(checkConnectivity, 5000);
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        // ===== MAP INITIALIZATION =====
+        function initializeMap() {
+            map = L.map('map').setView([40.7128, -74.0060], 12);
+           
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+           
+            markersLayer = L.featureGroup().addTo(map);
+            displayReportsOnMap();
+        }
+
+        // ===== EVENT LISTENERS =====
+        function setupEventListeners() {
+            // Prevent multiple bindings when this is called more than once
+            if (listenersInitialized) return;
+            listenersInitialized = true;
+            // Tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                });
+            });
+
+            // Form
+            document.getElementById('reportForm').addEventListener('submit', handleFormSubmit);
+            document.getElementById('imageInput').addEventListener('change', handleImageUpload);
+            document.getElementById('geoBtn').addEventListener('click', handleGeoTag);
+
+            // Quick categories
+            document.querySelectorAll('.category-quick-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectCategory(this.dataset.category);
+                });
+            });
+
+            // Track if user manually changes department so we don't override their choice
+            const deptSelect = document.getElementById('department');
+            if (deptSelect) {
+                deptSelect.addEventListener('change', function() {
+                    departmentManuallySet = true;
+                });
+            }
+
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    filterReportsByStatus(this.dataset.filter);
+                });
+            });
+
+            // Map controls
+            document.getElementById('zoomIn').addEventListener('click', () => map.zoomIn());
+            document.getElementById('zoomOut').addEventListener('click', () => map.zoomOut());
+            document.getElementById('centerLocation').addEventListener('click', () => {
+                if (userLocation) {
+                    map.setView([userLocation.latitude, userLocation.longitude], 16);
+                } else {
+                    alert('Please get your location first');
+                }
+            });
+
+            // Photo upload
+            document.querySelector('.photo-upload').addEventListener('click', () => {
+                document.getElementById('imageInput').click();
+            });
+
+            document.querySelector('.photo-upload').addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.currentTarget.style.opacity = '0.7';
+            });
+
+            document.querySelector('.photo-upload').addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.currentTarget.style.opacity = '1';
+            });
+
+            document.querySelector('.photo-upload').addEventListener('drop', (e) => {
+                e.preventDefault();
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    document.getElementById('imageInput').files = files;
+                    handleImageUpload();
+                }
+            });
+
+            // Modal
+            document.querySelector('.modal-close').addEventListener('click', () => {
+                document.getElementById('timelineModal').style.display = 'none';
+            });
+
+            window.addEventListener('click', (e) => {
+                const modal = document.getElementById('timelineModal');
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+
+            // Other modal handlers
+            const otherCloseBtn = document.getElementById('otherClose');
+            if (otherCloseBtn) otherCloseBtn.addEventListener('click', ()=> document.getElementById('otherModal').style.display = 'none');
+            const otherCancel = document.getElementById('otherCancel');
+            if (otherCancel) otherCancel.addEventListener('click', (e)=>{ e.preventDefault(); document.getElementById('otherModal').style.display='none'; document.getElementById('otherExplanation').value = ''; });
+            const otherSave = document.getElementById('otherSave');
+            if (otherSave) otherSave.addEventListener('click', (e)=>{
+                e.preventDefault();
+                const txt = document.getElementById('otherDesc').value.trim();
+                if (txt) {
+                    document.getElementById('otherExplanation').value = txt;
+                }
+                document.getElementById('otherModal').style.display='none';
+            });
+            window.addEventListener('click', (e)=>{
+                const modal = document.getElementById('otherModal');
+                if (modal && e.target === modal) modal.style.display='none';
+            });
+        }
+
+        // ===== TAB SWITCHING =====
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        // ===== CATEGORY SELECTION =====
+        function selectCategory(category, btnEl) {
+            selectedCategory = category;
+            document.querySelectorAll('.category-quick-btn').forEach(btn => btn.classList.remove('active'));
+            // find button element if not passed
+            let targetBtn = btnEl || document.querySelector('.category-quick-btn[data-category="' + category + '"]');
+            if (targetBtn) targetBtn.classList.add('active');
+
+            // Set hidden input
+            const catInput = document.getElementById('category');
+            if (catInput) catInput.value = category;
+
+            // Auto-select department for certain categories (only when user hasn't chosen a department)
+            try {
+                const deptEl = document.getElementById('department');
+                if (deptEl) {
+                    // only auto-assign when department is empty (Auto-assign) or not set
+                    const current = deptEl.value || '';
+                    if (!departmentManuallySet) {
+                        const mapping = {
+                            'pothole': 'roads',
+                            'garbage': 'sanitation',
+                            'streetlight': 'electricity',
+                            'water': 'water',
+                            'tree': 'parks',
+                            'traffic': 'traffic',
+                            'drainage': 'water',
+                            'noise': 'sanitation',
+                            'stray': 'parks',
+                            'accident': 'traffic',
+                            // 'other' intentionally left unmapped (auto-assign)
+                        };
+                        if (mapping[category]) {
+                            deptEl.value = mapping[category];
+                        }
+                    }
+                }
+            } catch (e) { /* safe fallback */ }
+
+            // If user selected 'other', prompt for explanation via modal
+            if (category === 'other') {
+                // Ensure department stays Auto-assign for 'Other' so backend can route it
+                try {
+                    const deptEl = document.getElementById('department');
+                    if (deptEl) {
+                        deptEl.value = '';
+                        departmentManuallySet = false;
+                    }
+                } catch (e) {}
+
+                const otherModal = document.getElementById('otherModal');
+                if (otherModal) {
+                    otherModal.style.display = 'block';
+                    document.getElementById('otherDesc').value = '';
+                    document.getElementById('otherDesc').focus();
+                } else {
+                    const desc = prompt('Please explain your issue:');
+                    if (desc) document.getElementById('description').value = desc;
+                }
+            }
+        }
+
+        // ===== IMAGE UPLOAD =====
+        function handleImageUpload() {
+            const file = document.getElementById('imageInput').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.querySelector('.image-preview-small');
+                    const img = new Image();
+                    img.onload = function() {
+                        preview.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
+                        preview.dataset.imageData = e.target.result;
+                        
+                        // Extract EXIF data including GPS location
+                        EXIF.getData(img, function() {
+                            const gpsLatitude = EXIF.getTag(img, 'GPSLatitude');
+                            const gpsLongitude = EXIF.getTag(img, 'GPSLongitude');
+                            const gpsLatitudeRef = EXIF.getTag(img, 'GPSLatitudeRef');
+                            const gpsLongitudeRef = EXIF.getTag(img, 'GPSLongitudeRef');
+                            
+                            if (gpsLatitude && gpsLongitude) {
+                                // Convert GPS coordinates from degrees/minutes/seconds to decimal
+                                const lat = convertDMSToDD(gpsLatitude, gpsLatitudeRef);
+                                const lng = convertDMSToDD(gpsLongitude, gpsLongitudeRef);
+                                
+                                // Show photo location info
+                                showPhotoLocationInfo(lat, lng);
+                            } else {
+                                showPhotoLocationInfo(null, null);
+                            }
+                        });
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function convertDMSToDD(dmsArray, ref) {
+            // Convert degrees/minutes/seconds array to decimal degrees
+            if (!dmsArray || dmsArray.length < 3) return null;
+            const degrees = dmsArray[0].numerator / dmsArray[0].denominator;
+            const minutes = dmsArray[1].numerator / dmsArray[1].denominator;
+            const seconds = dmsArray[2].numerator / dmsArray[2].denominator;
+            
+            let decimal = degrees + (minutes / 60) + (seconds / 3600);
+            
+            // Apply reference direction (N/S for latitude, E/W for longitude)
+            if (ref === 'S' || ref === 'W') {
+                decimal = decimal * -1;
+            }
+            
+            return decimal;
+        }
+
+        function showPhotoLocationInfo(latitude, longitude) {
+            // Find or create location info container
+            let locationContainer = document.getElementById('photoLocationInfo');
+            if (!locationContainer) {
+                const formSection = document.querySelector('.form-section:has(#imageInput)');
+                locationContainer = document.createElement('div');
+                locationContainer.id = 'photoLocationInfo';
+                locationContainer.style.cssText = `
+                    margin-top: 12px;
+                    padding: 12px;
+                    background: #f0f8ff;
+                    border: 1px solid #1abc9c;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    color: #191919;
+                `;
+                formSection.appendChild(locationContainer);
+            }
+            
+            if (latitude && longitude) {
+                const accuracy = 'High (from photo EXIF)';
+                locationContainer.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="color: #1abc9c; font-size: 16px;">📍</span>
+                        <strong>Photo Location Found</strong>
+                    </div>
+                    <div style="margin-left: 24px;">
+                        <div>Latitude: ${latitude.toFixed(6)}°</div>
+                        <div>Longitude: ${longitude.toFixed(6)}°</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">Accuracy: ${accuracy}</div>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <label>
+                            <input type="checkbox" id="usePhotoLocation" checked />
+                            Use photo location for report
+                        </label>
+                    </div>
+                `;
+                
+                // Store photo location globally
+                window.photoLocationData = {
+                    latitude: latitude,
+                    longitude: longitude,
+                    source: 'photo_exif'
+                };
+                
+                // Update map to show photo location
+                if (window.map && latitude && longitude) {
+                    window.map.setView([latitude, longitude], 16);
+                    
+                    // Remove existing photo location marker if any
+                    if (window.photoLocationMarker) {
+                        window.map.removeLayer(window.photoLocationMarker);
+                    }
+                    
+                    // Add marker for photo location
+                    window.photoLocationMarker = L.circleMarker([latitude, longitude], {
+                        radius: 8,
+                        fillColor: '#3498db',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(window.map).bindPopup('📷 Photo Location');
+                }
+            } else {
+                locationContainer.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="color: #f39c12; font-size: 16px;">⚠️</span>
+                        <span>No location data in photo</span>
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px;">Please use "Get Current Location" button to set location manually</div>
+                `;
+            }
+        }
+
+        // ===== GEO TAG =====
+        function handleGeoTag() {
+            const btn = document.getElementById('geoBtn');
+            btn.innerHTML = '<span class="loc-icon">⏳</span><span>Getting location...</span>';
+            btn.disabled = true;
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy
+                        };
+
+                        map.setView([userLocation.latitude, userLocation.longitude], 16);
+                       
+                        L.circleMarker([userLocation.latitude, userLocation.longitude], {
+                            radius: 8,
+                            fillColor: '#1abc9c',
+                            color: '#fff',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        }).addTo(map).bindPopup('Your Location');
+
+                        document.getElementById('coords').innerHTML = '✓ ' + userLocation.latitude.toFixed(4) + ', ' + userLocation.longitude.toFixed(4);
+                        document.getElementById('locationText').textContent = 'Location Set ✓';
+
+                        btn.innerHTML = '<span class="loc-icon">✓</span><span>Location Set</span>';
+                        btn.disabled = false;
+                        
+                        // Show location info card below upload section
+                        showManualLocationInfo(userLocation.latitude, userLocation.longitude, userLocation.accuracy);
+                    },
+                    (error) => {
+                        alert('Error: ' + error.message);
+                        btn.innerHTML = '<span class="loc-icon">📍</span><span>Get Current Location</span>';
+                        btn.disabled = false;
+                    }
+                );
+            }
+        }
+
+        function showManualLocationInfo(latitude, longitude, accuracy) {
+            // Find or create location info container
+            let locationContainer = document.getElementById('manualLocationInfo');
+            if (!locationContainer) {
+                const formSection = document.querySelector('.form-section:has(#imageInput)');
+                locationContainer = document.createElement('div');
+                locationContainer.id = 'manualLocationInfo';
+                locationContainer.style.cssText = `
+                    margin-top: 12px;
+                    padding: 12px;
+                    background: #f0fff4;
+                    border: 1px solid #1abc9c;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    color: #191919;
+                `;
+                formSection.appendChild(locationContainer);
+            }
+            
+            if (latitude && longitude) {
+                const accuracyText = accuracy ? `${Math.round(accuracy)}m` : 'Unknown';
+                locationContainer.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="color: #1abc9c; font-size: 16px;">✓</span>
+                        <strong>Manual Location Set</strong>
+                    </div>
+                    <div style="margin-left: 24px;">
+                        <div>Latitude: ${latitude.toFixed(6)}°</div>
+                        <div>Longitude: ${longitude.toFixed(6)}°</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">Accuracy: ${accuracyText}</div>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <label>
+                            <input type="checkbox" id="useManualLocation" checked />
+                            Use manual location for report
+                        </label>
+                    </div>
+                `;
+                
+                // Store manual location globally
+                window.manualLocationData = {
+                    latitude: latitude,
+                    longitude: longitude,
+                    accuracy: accuracy,
+                    source: 'manual_gps'
+                };
+            }
+        }
+
+        // ===== SENDING LOGIC =====
+        // Configure endpoint here if you have a backend. Leave empty to simulate send.
+        const SEND_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwZroJVa9YzXbItKFmAa2FhDQBEing8qbg8go1C1LbONDJ4QsIqz6vZtv-_7p49I2ya/exec';
+
+        function showAppNotice(text, duration = 3000) {
+            const el = document.getElementById('appNotice');
+            if (!el) {
+                console.log('Notice:', text);
+                return;
+            }
+            el.textContent = text;
+            el.style.display = 'block';
+            clearTimeout(el._hideTimer);
+            el._hideTimer = setTimeout(() => { el.style.display = 'none'; }, duration);
+        }
+
+        async function sendReport(report) {
+            // try real network send if endpoint configured
+            if (SEND_ENDPOINT) {
+                try {
+                    // Create FormData for Google Apps Script
+                    const formData = new FormData();
+                    
+                    // Add all report fields
+                    formData.append('id', report.id);
+                    formData.append('category', report.category);
+                    formData.append('description', report.description);
+                    formData.append('department', report.department);
+                    formData.append('severity', report.severity);
+                    formData.append('latitude', report.location.latitude);
+                    formData.append('longitude', report.location.longitude);
+                    formData.append('accuracy', report.location.accuracy || '');
+                    formData.append('locationSource', report.locationSource);
+                    formData.append('reporterPhone', report.reporterPhone);
+                    formData.append('status', report.status);
+                    formData.append('createdAt', report.createdAt);
+                    formData.append('upvotes', report.upvotes);
+                    formData.append('anonymous', report.anonymous);
+                    formData.append('urgent', report.urgent);
+                    formData.append('notifyUpdates', report.notifyUpdates);
+                    
+                    // Handle image - convert base64 to blob if needed
+                    if (report.image) {
+                        try {
+                            // Create a smaller version for transmission (reduce size)
+                            const canvas = document.createElement('canvas');
+                            const img = new Image();
+                            img.onload = function() {
+                                canvas.width = 600;
+                                canvas.height = 600 * (img.height / img.width);
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                const compressedImage = canvas.toDataURL('image/jpeg', 0.7);
+                                formData.append('image', compressedImage);
+                            };
+                            img.src = report.image;
+                        } catch (e) {
+                            // If compression fails, send original
+                            formData.append('image', report.image.substring(0, 50000)); // Limit size
+                        }
+                    }
+                    
+                    const res = await fetch(SEND_ENDPOINT, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (res.ok) {
+                        // mark sent
+                        report.status = 'sent';
+                        saveReports();
+                        loadReports();
+                        return true;
+                    }
+                    // non-OK response -> treat as queued
+                    report.status = 'queued';
+                    saveReports();
+                    loadReports();
+                    return false;
+                } catch (e) {
+                    console.error('Send error:', e);
+                    report.status = 'queued';
+                    saveReports();
+                    loadReports();
+                    return false;
+                }
+            }
+
+            // simulate network delay and success
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    report.status = 'sent';
+                    // add timeline entry
+                    report.timeline = report.timeline || [];
+                    report.timeline.push({ status: 'sent', timestamp: new Date().toISOString(), message: 'Delivered to municipal queue' });
+                    saveReports();
+                    loadReports();
+                    resolve(true);
+                }, 900);
+            });
+        }
+
+        // ===== FORM SUBMISSION =====
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            // Determine which location to use - prioritize based on checkbox selections
+            let currentLocation = null;
+            let locationSource = 'manual_gps';
+            
+            const usePhotoLocation = document.getElementById('usePhotoLocation');
+            const useManualLocation = document.getElementById('useManualLocation');
+
+            // If photo location exists and is checked, use it
+            if (usePhotoLocation && usePhotoLocation.checked && window.photoLocationData) {
+                currentLocation = {
+                    latitude: window.photoLocationData.latitude,
+                    longitude: window.photoLocationData.longitude,
+                    accuracy: 15
+                };
+                locationSource = 'photo_exif';
+            }
+            // Otherwise, if manual location exists and is checked, use it
+            else if (useManualLocation && useManualLocation.checked && window.manualLocationData) {
+                currentLocation = {
+                    latitude: window.manualLocationData.latitude,
+                    longitude: window.manualLocationData.longitude,
+                    accuracy: window.manualLocationData.accuracy
+                };
+                locationSource = 'manual_gps';
+            }
+            // Fall back to userLocation
+            else if (userLocation) {
+                currentLocation = userLocation;
+                locationSource = 'manual_gps';
+            }
+
+            if (!currentLocation) {
+                alert('Please set a location (either from photo GPS or by clicking "Get Current Location")');
+                return;
+            }
+
+            const imagePreview = document.querySelector('.image-preview-small');
+            const imageData = imagePreview.dataset.imageData;
+            if (!imageData) {
+                alert('Please upload a photo');
+                return;
+            }
+
+            const report = {
+                id: Date.now(),
+                category: document.getElementById('category').value || selectedCategory,
+                description: document.getElementById('description').value,
+                department: document.getElementById('department').value,
+                severity: document.querySelector('input[name="severity"]:checked').value,
+                image: imageData,
+                location: currentLocation,
+                locationSource: locationSource,
+                reporterPhone: localStorage.getItem('civic_phone') || localStorage.getItem('municipal_phone') || null,
+                anonymous: document.querySelector('input[name="anonymous"]')?.checked || false,
+                urgent: document.querySelector('input[name="urgent"]')?.checked || false,
+                notifyUpdates: document.querySelector('input[name="notify"]')?.checked || true,
+                upvotes: 0,
+                upvoters: [],
+                linkedReportId: null,
+                status: 'submitted',
+                createdAt: new Date().toISOString(),
+                timeline: [
+                    {
+                        status: 'submitted',
+                        timestamp: new Date().toISOString(),
+                        message: 'Report submitted'
+                    }
+                ]
+            };
+
+            // Check for duplicates
+            const duplicate = findDuplicateReport(report, reports);
+
+            if (duplicate) {
+                // Show duplicate dialog
+                showDuplicateDialog(
+                    report,
+                    duplicate,
+                    // Link to existing report (user chose to support)
+                    () => {
+                        const currentUserPhone = localStorage.getItem('civic_phone') || localStorage.getItem('municipal_phone');
+                        upvoteReport(duplicate.id, currentUserPhone, reports);
+                        linkReportToDuplicate(report.id, duplicate.id, [report, ...reports]);
+                        reports.push(report);
+                        saveReports();
+                        loadReports();
+                        displayReportsOnMap();
+                        showAppNotice('✓ Report linked to existing issue. Your upvote added!');
+                    },
+                    // Submit as new report anyway
+                    () => {
+                        reports.push(report);
+                        saveReports();
+                        loadReports();
+                        displayReportsOnMap();
+                        showAppNotice('✓ Reported as separate issue');
+                    }
+                );
+                return; // Don't continue with normal flow
+            }
+
+            // No duplicate found, proceed normally
+            reports.push(report);
+            console.log('Report created:', report);
+            saveReports();
+            loadReports();
+            displayReportsOnMap();
+
+            // Try to send the report to server (or simulate send if no endpoint configured)
+            console.log('Starting send...');
+            sendReport(report).then(sent => {
+                console.log('Report send result:', sent);
+                if (sent) {
+                    showAppNotice('✓ Report sent successfully');
+                } else {
+                    showAppNotice('Report queued (offline)');
+                }
+                // Do NOT auto-progress status — let real data determine when problem is resolved
+            }).catch(err => {
+                console.error('Send error:', err);
+                showAppNotice('Error sending report');
+            });
+
+            // Reset form
+            document.getElementById('reportForm').reset();
+            document.querySelector('.image-preview-small').innerHTML = '';
+            document.querySelector('.image-preview-small').removeAttribute('data-imagedata');
+            document.getElementById('coords').innerHTML = '';
+            document.getElementById('locationText').textContent = 'Get Current Location';
+            document.querySelectorAll('.category-quick-btn').forEach(btn => btn.classList.remove('active'));
+
+            alert('✅ Report submitted! Thank you for helping improve our city.');
+            switchTab('history');
+        }
+
+        // ===== STATUS PROGRESSION =====
+        function simulateStatusProgression(reportId) {
+            const statuses = ['verified', 'in-progress', 'resolved'];
+            let index = 0;
+
+            const interval = setInterval(() => {
+                const report = reports.find(r => r.id === reportId);
+                if (!report || index >= statuses.length) {
+                    clearInterval(interval);
+                    return;
+                }
+
+                report.status = statuses[index];
+                report.timeline.push({
+                    status: statuses[index],
+                    timestamp: new Date().toISOString(),
+                    message: 'Report ' + statuses[index]
+                });
+
+                saveReports();
+                loadReports();
+                displayReportsOnMap();
+                index++;
+            }, 8000);
+        }
+
+        // ===== DISPLAY ON MAP =====
+        function displayReportsOnMap() {
+            markersLayer.clearLayers();
+
+            const heatData = [];
+            const statusColors = {
+                'submitted': '#3b82f6',
+                'verified': '#8b5cf6',
+                'in-progress': '#f59e0b',
+                'resolved': '#10b981'
+            };
+
+            reports.forEach(report => {
+                heatData.push([report.location.latitude, report.location.longitude, 1]);
+
+                L.circleMarker([report.location.latitude, report.location.longitude], {
+                    radius: 7,
+                    fillColor: statusColors[report.status] || '#3b82f6',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).bindPopup('<strong>' + report.category + '</strong><br>Status: ' + report.status).addTo(markersLayer);
+            });
+
+            if (heatLayer) map.removeLayer(heatLayer);
+            if (heatData.length > 0) {
+                heatLayer = L.heatLayer(heatData, {
+                    radius: 30,
+                    blur: 25,
+                    maxZoom: 17,
+                    gradient: {
+                        0.0: '#3b82f6',
+                        0.25: '#06b6d4',
+                        0.5: '#f59e0b',
+                        0.75: '#ec4899',
+                        1.0: '#ef4444'
+                    }
+                }).addTo(map);
+            }
+
+            updateDensityBadge();
+        }
+
+        // ===== UPDATE STATS =====
+        function updateStats() {
+            const submitted = reports.filter(r => r.status === 'submitted').length;
+            const verified = reports.filter(r => r.status === 'verified').length;
+            const inProgress = reports.filter(r => r.status === 'in-progress').length;
+            const resolved = reports.filter(r => r.status === 'resolved').length;
+
+            document.getElementById('submittedCount').textContent = submitted;
+            document.getElementById('verifiedCount').textContent = verified;
+            document.getElementById('inProgressCount').textContent = inProgress;
+            document.getElementById('resolvedCount').textContent = resolved;
+
+            const categories = ['pothole', 'garbage', 'streetlight', 'water', 'drainage', 'tree', 'traffic', 'accident', 'noise', 'stray', 'other'];
+            categories.forEach(cat => {
+                const count = reports.filter(r => r.category === cat).length;
+                const elem = document.getElementById('count-' + cat);
+                if (elem) elem.textContent = count;
+            });
+        }
+
+        // ===== UPDATE DENSITY BADGE =====
+        function updateDensityBadge() {
+            const total = reports.length;
+            const critical = Math.ceil(total * 0.2);
+            const high = Math.ceil(total * 0.3);
+            const low = total - critical - high;
+
+            document.getElementById('density-critical').textContent = critical;
+            document.getElementById('density-high').textContent = high;
+            document.getElementById('density-low').textContent = low;
+        }
+
+        // ===== FILTER BY STATUS =====
+        function filterReportsByStatus(status) {
+            currentFilterStatus = status;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderReportsList();
+        }
+
+        // ===== RENDER REPORTS LIST =====
+        function renderReportsList() {
+            const list = document.getElementById('reportsList');
+            list.innerHTML = '';
+
+            // Get logged-in user's phone
+            const currentUserPhone = localStorage.getItem('civic_phone') || localStorage.getItem('municipal_phone');
+
+            let filtered = reports;
+            
+            // Filter by current user's phone
+            if (currentUserPhone) {
+                filtered = reports.filter(r => r.reporterPhone === currentUserPhone || r.reporterPhone === ('+91' + currentUserPhone) || r.reporterPhone === ('+91 ' + currentUserPhone));
+            }
+            
+            // Further filter by status if selected
+            if (currentFilterStatus) {
+                filtered = filtered.filter(r => r.status === currentFilterStatus);
+            }
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<li class="empty-state">No reports found</li>';
+                return;
+            }
+
+            filtered.slice().reverse().forEach(report => {
+                const li = document.createElement('li');
+                const upvoteText = report.upvotes && report.upvotes > 0 ? ` 👍 ${report.upvotes}` : '';
+                const linkedText = report.linkedReportId ? ' (Linked)' : '';
+                li.innerHTML = '<div class="report-item-title">' + report.category.toUpperCase() + upvoteText + linkedText + '</div><div class="report-item-meta"><span>' + new Date(report.createdAt).toLocaleDateString() + '</span><span class="report-status">' + report.status + '</span></div>';
+                li.addEventListener('click', () => showTimeline(report));
+                list.appendChild(li);
+            });
+        }
+
+        // ===== SHOW TIMELINE =====
+        function showTimeline(report) {
+            const modal = document.getElementById('timelineModal');
+            const content = document.getElementById('timelineContent');
+
+            content.innerHTML = '';
+
+            // Header: image + title row
+            const headerWrap = document.createElement('div');
+            headerWrap.style.display = 'flex';
+            headerWrap.style.gap = '12px';
+            headerWrap.style.alignItems = 'center';
+            headerWrap.style.marginBottom = '12px';
+
+            const thumb = document.createElement('div');
+            thumb.style.width = '120px';
+            thumb.style.height = '84px';
+            thumb.style.flex = '0 0 120px';
+            thumb.style.borderRadius = '8px';
+            thumb.style.overflow = 'hidden';
+            thumb.style.background = '#f5f5f5';
+            const img = document.createElement('img');
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.src = report.image || ('data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="100%" height="100%" fill="#f5f5f5"/></svg>'));
+            thumb.appendChild(img);
+            headerWrap.appendChild(thumb);
+
+            const titleCol = document.createElement('div');
+            titleCol.style.flex = '1';
+
+            const title = document.createElement('div');
+            title.style.display = 'flex';
+            title.style.justifyContent = 'space-between';
+            title.style.alignItems = 'center';
+
+            const left = document.createElement('div');
+            left.innerHTML = '<div style="font-weight:800;font-size:16px">' + (report.category || 'Issue').toUpperCase() + '</div><div style="font-size:12px;color:var(--text-light);">' + (report.description ? report.description.slice(0,80) : '') + '</div>';
+
+            const right = document.createElement('div');
+            const upvoteText = report.upvotes && report.upvotes > 0 ? '👍 ' + report.upvotes : '';
+            const linkedText = report.linkedReportId ? '<span style="background:#fff3cd;padding:6px;border-radius:8px;margin-left:6px;font-size:12px">Linked</span>' : '';
+            right.innerHTML = '<div style="text-align:right"><div style="font-weight:800">' + (report.status || '') + '</div><div style="font-size:12px;color:var(--text-light)">' + upvoteText + '</div>' + linkedText + '</div>';
+
+            title.appendChild(left);
+            title.appendChild(right);
+            titleCol.appendChild(title);
+
+            headerWrap.appendChild(titleCol);
+            content.appendChild(headerWrap);
+
+            // Progress path (larger)
+            const stepStates = ['submitted','sent','verified','in-progress','resolved'];
+            const stepsContainer = document.createElement('div');
+            stepsContainer.style.display = 'flex';
+            stepsContainer.style.flexDirection = 'column';
+            stepsContainer.style.alignItems = 'center';
+            stepsContainer.style.marginBottom = '12px';
+
+            const stepRow = document.createElement('div');
+            stepRow.style.display = 'flex';
+            stepRow.style.gap = '18px';
+            stepRow.style.alignItems = 'center';
+
+            stepStates.forEach(s => {
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'flex';
+                wrapper.style.flexDirection = 'column';
+                wrapper.style.alignItems = 'center';
+
+                const dot = document.createElement('div');
+                dot.className = 'mem-step ' + (report.status === s ? 'current' : (stepStates.indexOf(s) < stepStates.indexOf(report.status) ? 'done' : ''));
+                dot.style.width = '26px';
+                dot.style.height = '26px';
+                dot.style.borderRadius = '50%';
+
+                const lbl = document.createElement('div');
+                lbl.style.fontSize = '12px';
+                lbl.style.marginTop = '6px';
+                lbl.style.color = 'var(--text-light)';
+                lbl.textContent = s;
+
+                wrapper.appendChild(dot);
+                wrapper.appendChild(lbl);
+                stepRow.appendChild(wrapper);
+            });
+
+            stepsContainer.appendChild(stepRow);
+            content.appendChild(stepsContainer);
+
+            // Timeline events
+            const timelineWrap = document.createElement('div');
+            report.timeline.forEach((event, i) => {
+                const step = document.createElement('div');
+                step.className = 'timeline-step ' + (i < report.timeline.length - 1 ? 'completed' : '');
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'timeline-title';
+                titleDiv.textContent = '✓ ' + event.status.toUpperCase();
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'timeline-time';
+                timeDiv.textContent = new Date(event.timestamp).toLocaleString();
+                const msgDiv = document.createElement('div');
+                msgDiv.style.fontSize = '13px';
+                msgDiv.style.color = 'var(--text-light)';
+                msgDiv.style.marginTop = '6px';
+                msgDiv.textContent = event.message || '';
+                step.appendChild(titleDiv);
+                step.appendChild(timeDiv);
+                step.appendChild(msgDiv);
+                timelineWrap.appendChild(step);
+            });
+
+            content.appendChild(timelineWrap);
+
+            modal.style.display = 'block';
+            if (userLocation) {
+                map.setView([report.location.latitude, report.location.longitude], 16);
+            }
+        }
+
+        // ===== SAVE/LOAD =====
+        function saveReports() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+        }
+
+        function loadReports() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            reports = stored ? JSON.parse(stored) : [];
+            renderReportsList();
+            updateStats();
+        }
+
+        // ===== CONNECTIVITY =====
+        function checkConnectivity() {
+            const indicator = document.getElementById('connectivity');
+            if (navigator.onLine) {
+                indicator.textContent = '● Online';
+                indicator.className = 'status-indicator online';
+            } else {
+                indicator.textContent = '● Offline';
+                indicator.className = 'status-indicator';
+            }
+        }
+
+
+    </script>
+</body>
+</html>
+
